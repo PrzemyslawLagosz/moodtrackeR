@@ -1,5 +1,5 @@
 loginPageUI <- function(id) {
-  ns <- NS(id)
+  ns <- NS(id)#
   tagList(
     logo_center <- fluidRow(column(4), column(4,  align="center", mood_logo_200), column(4)),
     
