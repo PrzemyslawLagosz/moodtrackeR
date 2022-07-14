@@ -1,4 +1,5 @@
 server <- function(input, output, session) {
   
-  loginPageServer("loginPage")
+  loginPageServer("loginPage", parent_session = session)
+  registerPageServer("registerPage")
 }

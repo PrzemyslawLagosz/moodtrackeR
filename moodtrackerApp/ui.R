@@ -15,18 +15,17 @@ ui <- fluidPage(
   shinyFeedback::useShinyFeedback(),
   tabsetPanel(
     id = "wizard",
-    type = "hidden",
+    type = "tabs",
     tabPanel("login_page",
-             loginPageUI("loginPage"))
-    # ,
-    # 
-    # tabPanel("main_page",
-    #          logo_top_left,
-    #          main_page),
-    # 
-    # tabPanel("register_page",
-    #          logo_center,
-    #          register_page)
+             logo_center,
+             loginPageUI("loginPage")),
+    
+    tabPanel("main_page",
+             actionButton("elo", "ELO")),
+    
+    tabPanel("register_page",
+             logo_center,
+             registerPageUI("registerPage"))
   )
   
 )
