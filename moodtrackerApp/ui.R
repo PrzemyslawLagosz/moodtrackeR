@@ -21,7 +21,7 @@ ui <- fluidPage(
              loginPageUI("loginPage")),
     
     tabPanel("main_page",
-             actionButton("elo", "ELO")),
+             mainPageUI("mainPage")),
     
     tabPanel("register_page",
              logo_center,

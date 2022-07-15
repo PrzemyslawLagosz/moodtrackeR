@@ -1,6 +1,19 @@
-switch_page <- function(page) {
-  updateTabsetPanel(inputId = "wizard", selected = page)
+switch_page <- function(page, session) {
+  updateTabsetPanel(session, inputId = "wizard", selected = page)
 }
+
+new_user_row <- function(username, password) {
+  newUserRow <- c(username, password, paste0(username, password))
+}
+
+#saved_passwords <- read_csv("C:\\Users\\Przemo\\Documents\\R\\leaRn\\Shiny\\Moodtracker\\saved_passwords.csv") #backup
+#saveRDS(saved_passwords, file = "saved_passwords.Rdata")
+#saveRDS(saved_users_list, file = "users_list.RData")
+saved_passwords <- readRDS("saved_passwords.Rdata")
+saved_users_list <- readRDS("users_list.RData")
+
+saved_passwords_file_location <- "saved_passwords.csv"
+saved_users_list_file_location <- "users_list.RData"
 
 myToastOptions <- list(
   positionClass = "toast-top-right",
