@@ -53,10 +53,10 @@ loginPageServer <- function(id, parent_session, passwords) {
     })
     
     
-    # user_password <- reactive({paste0(input$username, input$password)})
-    # loged_user_id <- reactive(which(passwords()$user_pas == user_password()))
-    # 
-    # return(loged_user_id)
+    user_password <- reactive({paste0(input$username, input$password)})
+    loged_user_id <- reactive(which(passwords()$user_pas == user_password()))
+
+    return(loged_user_id)
 })
 }
 
@@ -275,7 +275,9 @@ mainPageServer <- function(id, parent_session, passwords, cache, loged_user_id) 
       } else {
         cache$saved_users[[loged_user_id()]] <- rbind(cache$saved_users[[loged_user_id()]], new_day_rate())
         saveRDS(cache$saved_users, saved_users_list_file_location)
+        saveData(cache$saved_users)
         updateTextAreaInput(inputId = "comment", value = "")
+        #browser()
       }
     })
     
@@ -291,6 +293,28 @@ mainPageServer <- function(id, parent_session, passwords, cache, loged_user_id) 
     # Modal - login_page - cancel_modal_btn
     observeEvent(input$cancel_modal_btn, {
       removeModal()
+    })
+    
+    # Humor plot
+    output$humor_plot <- renderPlotly({
+      # Prevent plot flickering after login
+      req(loged_user_id())
+      
+      ggplotly(
+        ggplot(data = cache$saved_users[[loged_user_id()]], aes(x = date, y = rate, label = day_comment, color = rate)) +
+          geom_point() +
+          ylim(c(0,10)) +
+          ggtitle("Moodtracker Plot")+
+          labs(x = element_blank(),
+               y= element_blank()) +
+          theme(axis.text.x=element_text(angle=50, vjust=0.5),
+                plot.title = element_text(hjust = 0.5,  margin = margin(0, 0, 10, 0)),
+                panel.background = element_blank(),
+                panel.grid.major.y = element_line(colour = "grey75"),
+                legend.position = "none"
+          ) +
+          scale_color_gradient(low="#393B57", high="#47A5CB")
+      )
     })
 })
 }
