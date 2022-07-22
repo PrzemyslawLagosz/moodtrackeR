@@ -1,11 +1,13 @@
-library(shiny)
+#library(shiny)
 library(tidyverse)
 library(shinyFeedback)
 library(shinyjs)
-library(shinydashboard)
-library(ggplot2)
+#library(shinydashboard)
+#library(ggplot2)
 library(plotly)
-library(lubridate)
+#library(lubridate)
+library(RSQLite)
+library(rsconnect)
 
 source("moodtrackerModules.R")
 source("moodtrackerHelpers.R")
@@ -17,16 +19,15 @@ ui <- fluidPage(
     id = "wizard",
     type = "hidden",
     tabPanel("login_page",
-             loginPageUI("loginPage"))
-    # ,
-    # 
-    # tabPanel("main_page",
-    #          logo_top_left,
-    #          main_page),
-    # 
-    # tabPanel("register_page",
-    #          logo_center,
-    #          register_page)
+             logo_center,
+             loginPageUI("loginPage")),
+    
+    tabPanel("main_page",
+             mainPageUI("mainPage")),
+    
+    tabPanel("register_page",
+             logo_center,
+             registerPageUI("registerPage"))
   )
   
 )
