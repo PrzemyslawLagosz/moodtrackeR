@@ -24,9 +24,14 @@ loginPageServer <- function(id, parent_session, passwords) {
   moduleServer(id, function(input, output, session) {
     
     user_password <- reactive({paste0(input$username, input$password)})
-    exist <- reactive({user_password() %in% passwords()$user_pas})
+    
     
     observeEvent(input$login, {
+      
+    user_pas <- get_user_pas_from_DB()
+    user_password <- reactive({paste0(input$username, input$password)})
+    exist <- reactive({user_password() %in% user_pas})
+    
       # Vaidation login_page
       if (exist() == TRUE){
         hideFeedback("username")
@@ -34,7 +39,6 @@ loginPageServer <- function(id, parent_session, passwords) {
         showToast("success", "You loged in succesfully!", .options = myToastOptions)
         updateTextAreaInput(inputId = "comment", value = "")
         updateTextAreaInput(inputId = "important_comment", value = "")
-
         switch_page(session = parent_session, "main_page")
       } else {
         showFeedbackDanger("username", "")
@@ -44,7 +48,6 @@ loginPageServer <- function(id, parent_session, passwords) {
     
     # Register Button - login_page
     observeEvent(input$register, { 
-      message("click")
       #clear inputs
       updateTextInput(inputId = "username_register", value = "")
       updateTextInput(inputId = "password1", value = "")
@@ -52,14 +55,11 @@ loginPageServer <- function(id, parent_session, passwords) {
       switch_page(session = parent_session, "register_page")
     })
     
-    
-    user_password <- reactive({paste0(input$username, input$password)})
-    loged_user_id <- reactive(which(passwords()$user_pas == user_password()))
+    loged_user_username <- reactive(input$username)
 
-    return(loged_user_id)
+    return(loged_user_username)
 })
 }
-
 
 
 
@@ -106,7 +106,8 @@ registerPageServer <- function(id, parent_session, passwords, cache) {
     })
     
     # Is username already taken - condition - register_page
-    is_taken <- reactive(input$username_register %in% passwords()$username)
+    takenUsernames <- get_usernames_from_DB()
+    is_taken <- reactive(input$username_register %in% takenUsernames)
     
     # Is username already taken - validation - register_page
     observeEvent(input$username_register, {
@@ -123,7 +124,6 @@ registerPageServer <- function(id, parent_session, passwords, cache) {
       input$password1
       input$password2
     }, {
-      
       if (input$username_register == "" | input$password1 == "" | input$password2 == "" | is_taken() == TRUE) {
         shinyjs::disable("register_confirm")
       } else {
@@ -148,32 +148,21 @@ registerPageServer <- function(id, parent_session, passwords, cache) {
     # Register button - register_page
     observeEvent(input$register_confirm, {
       
-      # Clear inputs
-      updateTextInput(inputId = "username", value = "")
-      updateTextInput(inputId = "password", value = "")
+    # Clear inputs
+    updateTextInput(inputId = "username", value = "")
+    updateTextInput(inputId = "password", value = "")
       
-      # Clear previous feedback
-      hideFeedback("username")
-      hideFeedback("password")
+    # Clear previous feedback
+    hideFeedback("username")
+    hideFeedback("password")
       
       if (same() == TRUE & is_taken() != TRUE & input$username_register != "" & input$password1 != "" & input$password2 != "") {
         showToast("success", "You registered succesfully!", .options = myToastOptions)
         
-        # Adding new registered user to saved_passwords
-        new_user <- new_user_row(input$username_register, input$password1)
-        passwords(rbind(passwords(), new_user))
-        write_csv(passwords(), saved_passwords_file_location)
-        
-        # Adding new registered user to users_list
-        ## user_password_registered <- isolate({paste0(input$username_register, input$password1)}) # <- would like to add this as a name of DF inside new_registered_user list.
-        new_registered_user <- list(data.frame(date = c(as.Date(today())),
-                                               rate = 0,
-                                               day_comment = ""))
-        
-        cache$saved_users <- append(cache$saved_users, new_registered_user)
-        
-        saveRDS(cache$saved_users, saved_users_list_file_location)
-        
+        # inserting new user to DataBase
+        c("username", "password", "user_pas")
+        new_user <- c(input$username_register, input$password1, paste0(input$username_register, input$password1))
+        insert_new_user_into_DB(new_user)
         switch_page(session = parent_session, "login_page")
       } else {
         NULL
@@ -181,6 +170,7 @@ registerPageServer <- function(id, parent_session, passwords, cache) {
     })
 })
 }
+
 
 
 
@@ -215,20 +205,32 @@ mainPageUI <- function(id) {
         ,tableOutput(ns("test_table"))
       )
     )
+    
   )
+  
 }
 
-mainPageServer <- function(id, parent_session, passwords, cache, loged_user_id) {
+mainPageServer <- function(id, parent_session, passwords, cache, loged_user_username) {
   moduleServer(id, function(input, output, session) {
     
-    # loged_user_id <- reactive(which(passwords()$user_pas == user_password()))
-    # user_password <- reactive({paste0(input$username, input$password)})
+    modal_confirm <- function() {
+      # https://stackoverflow.com/questions/48127459/using-modal-window-in-shiny-module
+      ns <- session$ns
+      modalDialog(
+        "Are you sure you want to override this day?",
+        title = "This day is already reated",
+        footer = tagList(
+          actionButton(ns("cancel_modal_btn"), "Cancel"),
+          actionButton(ns("ok_modal_btn"), "Override it", class = "btn btn-primary")
+        ),
+        easyClose = TRUE
+      )
+    }
     
     # Logout Button - main_page
     observeEvent(input$logout, {
-      message("click")
       # Clear inputs
-      updateTextInput(inputId = "username", value = "")
+      updateTextInput(inputId = "username", value = "")    ### DOESN"T WORK
       updateTextInput(inputId = "password", value = "")
       
       # Clear previous feedback
@@ -240,7 +242,6 @@ mainPageServer <- function(id, parent_session, passwords, cache, loged_user_id) 
     
     # Important Button - main_page (show / hide)
     observeEvent(input$important_btn, {
-      message(loged_user_id())
       if(input$important_btn %% 2 == 0){
         shinyjs::hide(id = "important_date")
         shinyjs::hide(id = "important_comment")
@@ -250,45 +251,33 @@ mainPageServer <- function(id, parent_session, passwords, cache, loged_user_id) 
         shinyjs::show(id = "important_comment")
         shinyjs::show(id = "add_important_btn")
       }
-      
     })
-    
-    # Add button - main_page
-    new_day_rate <- reactive(
-      data.frame(
-        date = input$date,
-        rate = input$day_rate,
-        day_comment = input$comment)
-    )
-    
+  
     observeEvent(input$add_btn, {
-      date_column_length <- length(cache$saved_users[[loged_user_id()]]$date)
-      day_rate_already_exists <- (input$date %in% cache$saved_users[[loged_user_id()]]$date)
       
-      # 1st if for first time logged in users
-      if (day_rate_already_exists == TRUE & date_column_length == 1){
-        cache$saved_users[[loged_user_id()]][cache$saved_users[[loged_user_id()]]$date == input$date, ] <- new_day_rate()
-        saveRDS(cache$saved_users, saved_users_list_file_location)
-        updateTextAreaInput(inputId = "comment", value = "")
-      } else if (day_rate_already_exists == TRUE) {
-        showModal(modal_confirm)
-      } else {
-        cache$saved_users[[loged_user_id()]] <- rbind(cache$saved_users[[loged_user_id()]], new_day_rate())
-        saveRDS(cache$saved_users, saved_users_list_file_location)
-        saveData(cache$saved_users)
-        updateTextAreaInput(inputId = "comment", value = "")
-        #browser()
-      }
+      myDate <- as.character(input$date)
+      new_day_rate <- reactive(c(loged_user_username(), myDate, input$day_rate, input$comment))
+      
+      userData <- get_posts_from_DB(as.character(loged_user_username()))
+      day_rate_already_exists <- (as.character(input$date) %in% userData[ ,"date"])
+      
+      if (day_rate_already_exists == TRUE) {
+          showModal(modal_confirm())
+        } else {
+          insert_new_post_into_DB(new_day_rate)
+          updateTextAreaInput(inputId = "comment", value = "")
+        }
     })
     
     # Modal - login_page - ok_modal_btn
     observeEvent(input$ok_modal_btn, {
-      # It checks which row in DF$date evaluate to currently choosen date, and replace after confirmation
-      cache$saved_users[[loged_user_id()]][cache$saved_users[[loged_user_id()]]$date == input$date, ] <- new_day_rate()
-      saveRDS(cache$saved_users, saved_users_list_file_location)
+      override_rated_day_DB(day_rate = input$day_rate, 
+                            comment = input$comment, 
+                            loged_user_username = loged_user_username(), 
+                            date = input$date)
       removeModal()
       updateTextAreaInput(inputId = "comment", value = "")
-      #browser()
+      
     })
     # Modal - login_page - cancel_modal_btn
     observeEvent(input$cancel_modal_btn, {
@@ -297,11 +286,11 @@ mainPageServer <- function(id, parent_session, passwords, cache, loged_user_id) 
     
     # Humor plot
     output$humor_plot <- renderPlotly({
-      # Prevent plot flickering after login
-      req(loged_user_id())
-      
+      input$add_btn
+      input$ok_modal_btn
+      userData <- get_posts_from_DB(as.character(loged_user_username()))
       ggplotly(
-        ggplot(data = cache$saved_users[[loged_user_id()]], aes(x = date, y = rate, label = day_comment, color = rate)) +
+        ggplot(data = userData, aes(x = date, y = rate, label = comment, color = rate)) +
           geom_point() +
           ylim(c(0,10)) +
           ggtitle("Moodtracker Plot")+

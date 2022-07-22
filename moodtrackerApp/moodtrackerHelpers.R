@@ -6,14 +6,86 @@ new_user_row <- function(username, password) {
   newUserRow <- c(username, password, paste0(username, password))
 }
 
-#saved_passwords <- read_csv("C:\\Users\\Przemo\\Documents\\R\\leaRn\\Shiny\\Moodtracker\\saved_passwords.csv") #backup
-#saveRDS(saved_passwords, file = "saved_passwords.Rdata")
-#saveRDS(saved_users_list, file = "users_list.RData")
-saved_passwords <- readRDS("saved_passwords.Rdata")
-saved_users_list <- readRDS("users_list.RData")
+sqlitePath <- "users.db" #non-relative PATH to DataBase
+tableUsers <- "users"
+tablePosts <- "posts"
 
-saved_passwords_file_location <- "saved_passwords.csv"
-saved_users_list_file_location <- "users_list.RData"
+get_user_pas_from_DB <- function() {
+  #Get user_pas from DB.
+  db <- dbConnect(SQLite(), sqlitePath)
+  # Construct the fetching query
+  query <- sprintf("SELECT user_pas FROM %s", tableUsers)
+  # Submit the fetch query and disconnect
+  data <- dbGetQuery(db, query)
+  user_pas <- data[,]
+  dbDisconnect(db)
+  user_pas
+}
+
+get_posts_from_DB <- function(username) {
+  #Get user_pas from DB.
+  db <- dbConnect(SQLite(), sqlitePath)
+  # Construct the fetching query
+  query <- sprintf("SELECT * FROM %s WHERE username = '%s'", tablePosts, username)
+  # Submit the fetch query and disconnect
+  data <- dbGetQuery(db, query)
+  posts <- data[,]
+  dbDisconnect(db)
+  posts
+}
+
+get_usernames_from_DB <- function() {
+  #Get user_pas from DB.
+  db <- dbConnect(SQLite(), sqlitePath)
+  # Construct the fetching query
+  query <- sprintf("SELECT username FROM %s", tableUsers)
+  # Submit the fetch query and disconnect
+  data <- dbGetQuery(db, query)
+  username <- data[,]
+  dbDisconnect(db)
+  username
+}
+
+insert_new_user_into_DB <- function(new_user) {
+  fields <- c("username", "password", "user_pas")
+  db <- dbConnect(SQLite(), sqlitePath)
+  # Construct the update query by looping over the data fields
+  query <- sprintf(
+    "INSERT INTO %s (%s) VALUES ('%s')",
+    tableUsers, 
+    paste(fields, collapse = ", "),
+    paste(new_user, collapse = "', '")
+  )
+  dbExecute(db, query)
+  dbDisconnect(db)
+}
+
+insert_new_post_into_DB <- function(new_day_rate) {
+  fields <- c("username", "date", "rate", "comment")
+  
+  db <- dbConnect(SQLite(), sqlitePath)
+  query <- sprintf(
+    "INSERT INTO %s (%s) VALUES ('%s')",
+    tablePosts,
+    paste(fields, collapse = ", "),
+    paste(new_day(), collapse = "', '")
+  )
+  dbExecute(db, query)
+  dbDisconnect(db)
+}
+
+override_rated_day_DB <- function(day_rate, comment, loged_user_username, date) {
+  db <- dbConnect(SQLite(), sqlitePath)
+  query <- sprintf(
+    "UPDATE %s SET rate = '%s', comment = '%s' WHERE username = '%s' AND date = '%s'",
+    tablePosts,
+    day_rate,
+    comment,
+    loged_user_username,
+    date)
+  dbExecute(db, query)
+  dbDisconnect(db)
+}
 
 myToastOptions <- list(
   positionClass = "toast-top-right",
@@ -36,14 +108,18 @@ myToastOptions <- list(
 mood_logo_200 <- tags$a(tags$img(src = "mood_logo.png", height = "200", width = "200"))
 mood_logo_150 <- tags$a(tags$img(src = "mood_logo.png", height = "150", width = "150"))
 
-modal_confirm <- modalDialog(
+modal_confirm <- function() {
+  ns <- parent_session$ns
+  modalDialog(
   "Are you sure you want to override this day?",
   title = "This day is already reated",
   footer = tagList(
-    actionButton("cancel_modal_btn", "Cancel"),
-    actionButton("ok_modal_btn", "Override it", class = "btn btn-primary")
-  )
+    actionButton(ns("cancel_modal_btn"), "Cancel"),
+    actionButton(ns("ok_modal_btn"), "Override it", class = "btn btn-primary")
+  ),
+  easyClose = TRUE
 )
+}
 
 logo_center <- fluidRow(column(4), column(4,  align="center", mood_logo_200), column(4))
 

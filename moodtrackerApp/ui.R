@@ -1,11 +1,13 @@
-library(shiny)
+#library(shiny)
 library(tidyverse)
 library(shinyFeedback)
 library(shinyjs)
-library(shinydashboard)
-library(ggplot2)
+#library(shinydashboard)
+#library(ggplot2)
 library(plotly)
-library(lubridate)
+#library(lubridate)
+library(RSQLite)
+library(rsconnect)
 
 source("moodtrackerModules.R")
 source("moodtrackerHelpers.R")
@@ -15,7 +17,7 @@ ui <- fluidPage(
   shinyFeedback::useShinyFeedback(),
   tabsetPanel(
     id = "wizard",
-    type = "tabs",
+    type = "hidden",
     tabPanel("login_page",
              logo_center,
              loginPageUI("loginPage")),
